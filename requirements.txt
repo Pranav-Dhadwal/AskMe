@@ -2,6 +2,9 @@
 python
 
 # Libraries
+python-dotenv
+langchain-groq
+
 pandas
 numpy
 streamlit

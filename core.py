@@ -73,9 +73,7 @@ DISALLOWED_NAMES = {
 
 
 def is_safe_code(code: str) -> tuple[bool, str]:
-    """
-    Very basic guardrail: parse as a single expression, block dangerous names.
-    """
+    """Very basic guardrail: parse as a single expression, block dangerous names."""
     try:
         tree = ast.parse(code, mode="eval")
     except SyntaxError:
@@ -92,22 +90,41 @@ def is_safe_code(code: str) -> tuple[bool, str]:
     return True, ""
 
 
-# --- 4. Execution -----------------------------------------------------
+# --- 4. Framing the answer in natural language -------------------------
+
+EXPLAIN_PROMPT = """You are a data analysis assistant. A user asked a \
+question about their data, and pandas code was run to get a result. \
+Answer the user's question in one short, plain-English sentence using \
+that result. Do not mention code, pandas, or dataframes - just state \
+the answer naturally, as if you computed it yourself."""
+
+
+def explain_result(question: str, result) -> str:
+    user_content = f"Question: {question}\nResult: {result}"
+
+    response = llm.invoke([
+        SystemMessage(content=EXPLAIN_PROMPT),
+        HumanMessage(content=user_content),
+    ])
+    return response.content.strip()
+
+
+# --- 5. Execution -----------------------------------------------------
 
 def run_query(df: pd.DataFrame, question: str):
-    """
-    Full pipeline: 
-    schema -> LLM -> guardrail -> execute. Returns (result, code, error)."""
+    """Full pipeline: schema -> LLM -> guardrail -> execute -> explain.
+    Returns (answer, result, code, error)."""
     schema = extract_schema(df)
     code = generate_code(question, schema)
 
     safe, reason = is_safe_code(code)
     if not safe:
-        return None, code, f"Blocked by guardrail: {reason}"
+        return None, None, code, f"Blocked by guardrail: {reason}"
 
     try:
         result = eval(code, {"df": df, "__builtins__": {}}, {})
     except Exception as e:
-        return None, code, f"Error running generated code: {e}"
+        return None, None, code, f"Error running generated code: {e}"
 
-    return result, code, None
+    answer = explain_result(question, result)
+    return answer, result, code, None

@@ -44,7 +44,9 @@ if uploaded_file is not None:
                 st.error(error)
                 answer = f"Couldn't answer that: {error}"
             else:
-                st.write(answer)
+                with st.expander('Result'):
+                    st.write(result)
+                st.write(f'Summary : {answer}')
 
         st.session_state.messages.append({"role": "assistant", "content": answer})
 else:

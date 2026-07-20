@@ -1,0 +1,8 @@
+# Programming Language 
+python
+
+# Libraries
+pandas
+numpy
+streamlit
+flask
